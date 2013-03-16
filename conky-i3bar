@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Send out the necessary headers and then start conky.
+
+echo '{ "version": 1 }'
+echo '['
+echo '[],'
+exec conky -c $HOME/.conkyrc-json

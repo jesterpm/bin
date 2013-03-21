@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# Pause music
+if pgrep xmms2 &> /dev/null; then
+    xmms2 pause
+fi
+
 # Set pidgin away.
 if pgrep pidgin &> /dev/null; then
     currentStatusMessage="$(purple-remote 'getstatusmessage')"

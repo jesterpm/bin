@@ -3,10 +3,13 @@
 # Open a SSH session to the hostname in the clipboard
 # Requires the xclip package to be installed.
 
-HOSTNAME=$(xclip -out|cut -d' ' -f1)
+getSelection() {
+    HOSTNAME=$(xclip -out -selection $1|sed -re 's/(.*[[:space:]]|)([A-Za-z0-9][A-Za-z0-9.-]+\.[A-Za-z0-9.-]*[A-Za-z0-9]).*/\2/')
+}
 
+getSelection 'primary'
 if [ -z "$HOSTNAME" ]; then
-    HOSTNAME=$(xclip -out -selection secondary|cut -d' ' -f1)
+    getSelection 'secondary'
 fi
 
 if [ -n "$HOSTNAME" ]; then

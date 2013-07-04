@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Open a SSH session to the hostname in the clipboard
+# Requires the xclip package to be installed.
+
+HOSTNAME=$(xclip -out|cut -d' ' -f1)
+
+if [ -z "$HOSTNAME" ]; then
+    HOSTNAME=$(xclip -out -selection secondary|cut -d' ' -f1)
+fi
+
+if [ -n "$HOSTNAME" ]; then
+    i3-sensible-terminal -e ssh $HOSTNAME &
+else
+    notify-send "No hostname in clipboard"
+    exit 1
+fi

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+scp $* californium.jesterpm.net:public_html/tmp.jesterpm.net/

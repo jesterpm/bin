@@ -12,7 +12,8 @@ if pgrep pidgin &> /dev/null; then
     purple-remote 'setstatus?status=away&message=Away'
 fi
 
-i3lock -n -i $HOME/.wallpapers/lock.png --color=0e0e0e -u -m
+#i3lock -n -i $HOME/.wallpapers/lock.png --color=0e0e0e -u -m
+xscreensaver-command -lock
 
 if pgrep pidgin &> /dev/null; then
     purple-remote 'setstatus?status='"$currentStatus"'&message='"$currentStatusMessage"

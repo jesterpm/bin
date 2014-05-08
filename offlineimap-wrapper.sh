@@ -1,7 +1,4 @@
 #!/bin/sh
 
-. $HOME/.gpg-agent-info
-export GPG_AGENT_INFO 
-export DISPLAY=:0
-/usr/bin/offlineimap >> $HOME/.offlineimap.log
-
+export KRB5CCNAME=$(cat $HOME/.KRB5CCNAME)
+klist -s && /usr/bin/offlineimap >> $HOME/.offlineimap.log

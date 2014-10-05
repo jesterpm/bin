@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Move the primary clipboard to the secondary clipboard.
+# This really only exists because chrome doesn't handle shift+insert correctly...
+# Requires the xclip package to be installed.
+
+xclip -out -selection primary|xclip -in -selection clip
+

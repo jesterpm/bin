@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Run gnucash
+/usr/bin/gnucash
+
+# Backup after exiting
+backup-gnucash.sh

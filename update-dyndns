@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 ##
 ## Update a Route53 record with this host's IP addresses.
@@ -25,7 +25,7 @@ RECORDSET=$(hostname --fqdn)
 COMMENT="Auto updating @ `date`"
 
 IP4=$(dig +short myip.opendns.com @resolver1.opendns.com)
-IP6=$((ip -6 addr list|grep inet6|grep global|grep -v temporary|awk '{print $2}'; ip -6 addr list|grep inet6|grep global|grep temporary|awk -F '{print $2}')|head -n1|cut -d/ -f1)
+IP6=$((ip -6 addr list|grep inet6|grep global|grep -v temporary|awk '{print $2}'; ip -6 addr list|grep inet6|grep global|grep temporary|awk '{print $2}')|grep -v '^fd00:'|head -n1|cut -d/ -f1)
 
 function valid_ip4()
 {

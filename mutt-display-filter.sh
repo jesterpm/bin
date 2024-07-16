@@ -11,5 +11,6 @@ else
 fi
 
 # Rewrite date to local time
-echo "${MESSAGE}" | sed -r "s/^Date:\\s*(([F-Wa-u]{3},\\s*)?[[:digit:]]{1,2}\\s+[A-Sa-y]{3}\\s+[[:digit:]]{4}\\s+[[:digit:]]{1,2}:[[:digit:]]{1,2}(:[[:digit:]]{1,2})?\\s+[+-][[:digit:]]{4})/date +'Date: %a, %d %b %Y %H:%M:%S %z' -d '\\1'/e"
+echo "${MESSAGE}"
+#| sed -r "s/^Date:\\s*(([F-Wa-u]{3},\\s*)?[[:digit:]]{1,2}\\s+[A-Sa-y]{3}\\s+[[:digit:]]{4}\\s+[[:digit:]]{1,2}:[[:digit:]]{1,2}(:[[:digit:]]{1,2})?\\s+[+-][[:digit:]]{4})/date +'Date: %a, %d %b %Y %H:%M:%S %z' -d '\\1'/e"
 

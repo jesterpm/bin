@@ -1,0 +1,20 @@
+#!/bin/sh
+
+FILE=$1
+
+# Incoming header is
+# "Date","No.","Description","Debit","Credit"
+# Trans. Date,Post Date,Description,Amount,Category
+#
+# Ledger columns are
+# transid,date,payee,note,debit,credit,,code,
+
+sed '1 s/.*/date,,payee,amount,/' $FILE | tr -d "\r" > ${FILE}.ledger
+ledger convert ${FILE}.ledger \
+    --input-date-format '%m/%d/%Y' \
+    --account "Liabilities:Discover" \
+    --auto-match \
+    --rich-data
+
+
+

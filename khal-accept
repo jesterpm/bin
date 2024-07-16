@@ -1,0 +1,6 @@
+#!/bin/sh
+
+FILE=$(mktemp invite-XXXX.ics)
+cat - > $FILE
+khal import $FILE
+rm $FILE

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+NAME=${1:-$(basename $PWD)}
+REMOTE=${2:-origin}
+
+ssh git.jesterpm.net "git init --bare git/${NAME}.git"
+git remote add $REMOTE git.jesterpm.net:git/${NAME}.git
+git push -u $REMOTE --all

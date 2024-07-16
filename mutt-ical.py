@@ -158,7 +158,7 @@ def organizer(ical):
         raise("no organizer in event")
 
 if __name__=="__main__":
-    email_address = None
+    email_address = []
     accept_decline = 'ACCEPTED'
     opts, args=getopt(sys.argv[1:],"e:aidtD")
 
@@ -173,7 +173,7 @@ if __name__=="__main__":
         if opt == '-D':
             sys.exit(0)
         if opt == '-e':
-            email_address = arg
+            email_address.append(arg)
         if opt == '-i':
             accept_decline = get_accept_decline()
         if opt == '-a':
@@ -195,11 +195,11 @@ if __name__=="__main__":
     flag = 1
     for attendee in attendees:
         if hasattr(attendee,'EMAIL_param'):
-            if attendee.EMAIL_param == email_address:
+            if attendee.EMAIL_param in email_address:
                 ans.vevent.attendee_list.append(attendee)
                 flag = 0
         else:
-            if attendee.value.split(':')[1] == email_address:
+            if attendee.value.split(':')[1] in email_address:
                 ans.vevent.attendee_list.append(attendee)
                 flag = 0
     if flag:
@@ -212,14 +212,16 @@ if __name__=="__main__":
     to = organizer(ans)
 
     message = EmailMessage()
-    message['From'] = email_address
+    message['From'] = email_address[0]
     message['To'] = to
     message['Subject'] = subject
-    mailtext = "'%s has %s'" % (email_address, accept_decline.lower())
+    mailtext = "'%s has %s'" % (email_address[0], accept_decline.lower())
     message.add_alternative(mailtext, subtype='plain')
     message.add_alternative(ans.serialize(),
             subtype='calendar',
             params={ 'method': 'REPLY' })
 
+    if accept_decline == "Accepted" or accept_decline == "Tentative":
+        os.system("khal import --batch %s" % (args[0],))
 
     execute(sendmail() + ['--', to], message.as_bytes())

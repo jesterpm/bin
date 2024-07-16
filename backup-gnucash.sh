@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BACKUP=$HOME/documents/finances/gnucash-backup
+BACKUP=$HOME/sync/gnucash-backup
 MASTER=$HOME/gnucash-master
 TEST_FILE=$MASTER/2016.gnucash
 

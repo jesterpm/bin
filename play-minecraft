@@ -1,0 +1,6 @@
+#!/bin/sh
+
+pkill -f launcher
+xinput  set-prop 11 290 0
+minecraft-launcher
+xinput  set-prop 11 290 1

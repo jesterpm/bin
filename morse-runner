@@ -1,0 +1,3 @@
+#!/bin/sh
+
+WINEPREFIX="$HOME/.wine-rufzxp" wine .wine-rufzxp/drive_c/Program\ Files/Afreet/MorseRunner/MorseRunner.exe

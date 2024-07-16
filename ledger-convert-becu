@@ -1,0 +1,20 @@
+#!/bin/sh
+
+ACCOUNT=$1
+FILE=$2
+
+# Incoming header is
+# "Date","No.","Description","Debit","Credit"
+#
+# Ledger columns are
+# transid,date,payee,note,debit,credit,,code,
+
+sed '1 s/.*/date,code,payee,debit,credit/' $FILE | sed 's/"-/"/' |tr -d \" > ${FILE}.ledger
+ledger convert ${FILE}.ledger \
+    --input-date-format '%m/%d/%Y' \
+    --account "Assets:Current Assets:$ACCOUNT" \
+    --auto-match \
+    --rich-data --invert
+
+
+

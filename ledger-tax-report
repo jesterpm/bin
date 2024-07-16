@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+
+import re
+import subprocess
+import sys
+
+if len(sys.argv) == 2:
+    year = sys.argv[1]
+else:
+    year = '2023'
+
+def ledger_amount(query):
+    p = subprocess.run("ledger -p '%s' -n -J --yearly reg %s" % (year, query,),
+            shell=True, stdout=subprocess.PIPE, text=True)
+    parts = p.stdout.split(' ')
+    if len(parts) == 2:
+        return float(parts[1])
+    else:
+        return 0.0
+
+def parse_tax_table(input):
+    filing_status = 2 # Married/Jointly
+    table = []
+    delta = 0
+    prev_max_tax = 0
+    for line in input.split("\n"):
+        if not line:
+            continue
+        cols = line.split("\t")
+        rate = float(cols[0].strip(' %')) / 100.0
+        brk = re.sub('[$,]', '', cols[filing_status]).split(' ')
+        lower = brk[0]
+        upper = brk[2]
+        delta
+        if upper == 'more':
+            table.append((float(lower), None, rate, delta))
+        else:
+            delta += rate * float(lower) - prev_max_tax
+            prev_max_tax = float(upper) * rate
+            table.append((float(lower), float(upper), rate, delta))
+    return table
+
+    
+income_tax_table = {}
+
+# c&p from https://taxfoundation.org/2022-tax-brackets/
+income_tax_table['2022'] = parse_tax_table('''
+10% 	$0 to $10,275 	$0 to $20,550 	$0 to $14,650
+12% 	$10,275 to $41,775 	$20,550 to $83,550 	$14,650 to $55,900
+22% 	$41,775 to $89,075 	$83,550 to $178,150 	$55,900 to $89,050
+24% 	$89,075 to $170,050 	$178,150 to $340,100 	$89,050 to $170,050
+32% 	$170,050 to $215,950 	$340,100 to $431,900 	$170,050 to $215,950
+35% 	$215,950 to $539,900 	$431,900 to $647,850 	$215,950 to $539,900
+37% 	$539,900 or more 	$647,850 or more 	$539,900 or more
+''')
+
+# c&p from https://taxfoundation.org/2023-tax-brackets/
+income_tax_table['2023'] = parse_tax_table('''
+10% 	$0 to $11,000 	$0 to $22,000 	$0 to $15,700
+12% 	$11,000 to $44,725 	$22,000 to $89,450 	$15,700 to $59,850
+22% 	$44,725 to $95,375 	$89,450 to $190,750 	$59,850 to $95,350
+24% 	$95,375 to $182,100 	$190,750 to $364,200 	$95,350 to $182,100
+32% 	$182,100 to $231,250 	$364,200 to $462,500 	$182,100 to $231,250
+35% 	$231,250 to $578,125 	$462,500 to $693,750 	$231,250 to $578,100
+37% 	$578,125 or more 	$693,750 or more 	$578,100 or more
+''')
+
+def compute_income_tax(income):
+    for (lower, upper, rate, sub) in income_tax_table[year]:
+        if income > lower and (upper is None or income <= upper):
+            return round(income * rate - sub)
+    raise Exception("Failed to compute tax")
+
+def compute_tax_worksheet(taxable_income, qualified_dividends, schedule_d):
+    line       = {}
+    line['1']  = taxable_income
+    line['2']  = qualified_dividends
+    line['3']  = max(0, min(schedule_d['15'], schedule_d['16']))
+    line['4']  = line['2'] + line['3']
+    line['5']  = max(0, taxable_income - line['4'])
+    line['6']  = 83350.00 # TODO Tax table (this number from 2022)
+    line['7']  = min(taxable_income, line['6'])
+    line['8']  = min(line['5'], line['7'])
+    line['9']  = line['7'] - line['8'] # 0% tax amount
+    line['10'] = min(taxable_income, line['4'])
+    line['11'] = line['9']
+    line['12'] = line['10'] - line['11']
+    line['13'] = 517200.00 # TODO Tax table (this number from 2022)
+    line['14'] = min(taxable_income, line['13'])
+    line['15'] = line['5'] + line['9']
+    line['16'] = max(0, line['14'] - line['15'])
+    line['17'] = min(line['12'], line['16'])
+    line['18'] = line['17'] * 0.15
+    line['19'] = line['9'] + line['17']
+    line['20'] = line['10'] - line['19']
+    line['21'] = line['20'] * 0.20
+    line['22'] = compute_income_tax(line['5'])
+    line['23'] = line['18'] + line['21'] + line['22']
+    line['24'] = compute_income_tax(taxable_income)
+    line['25'] = min(line['23'], line['24'])
+    return line
+
+def compute_schedule_d(net_st, net_lt):
+    line       = {}
+    line['7']  = net_st
+    line['15'] = net_lt
+    line['16'] = line['7'] + line['15']
+
+    # N.B. this deviates from the instructions 
+    # For simplicity, Form 1040 will always get line 7 from schedule D line 21.
+    line['21'] = line['16']
+
+    if line['16'] > 0:
+        if line['15'] > 0:
+            line['17'] = 'Yes'
+            line['18'] = 0.00 # TODO: 28% Rate Gain Worksheet
+            line['19'] = 0.00 # TODO: Section 1250 Worksheet
+            if line['18'] == 0.00 and line['19'] == 0.00:
+                line['20'] = 'Yes'
+                return line
+            else:
+                line['20'] = 'No'
+                raise Exception("TODO: Implement Schedule D worksheet")
+        else:
+            line['17'] = 'No'
+            # Goto line 22
+    elif line['16'] < 0:
+        # Goto Line 21 (and 22)
+        line['21'] = max(-3000.00, line['16'])
+
+    # Line 22 - Do you have qualified dividends?
+
+    return line
+
+def compute_deduction(deductions, limited):
+    itemized  = deductions 
+    itemized += min(10000, limited)
+    standard = 25900  # TODO Tax table
+    return max(itemized, standard)
+
+def credit_limit_worksheet_a(line18):
+    line       = {}
+    line['1']  = line18
+    line['2']  = 0.00                   # TODO: Schedule 3
+    line['3']  = line['1'] - line['2']
+    line['4']  = 0                      # TODO: Credit Limit Worksheet B
+    line['5']  = line['3'] - line['4']
+    return line
+
+# Schedule 8812
+def compute_child_tax_credit(agi, dependants, line18):
+    line       = {}
+    line['1']  = agi
+    line['3']  = line['1']
+    line['4']  = dependants
+    line['5']  = line['4'] * 2000.00
+    line['6']  = 0
+    line['7']  = line['6'] * 500.00
+    line['8']  = line['5'] + line['7']
+    line['9']  = 400000.00 # Married, filing jointly
+    line['10'] = max(0, round((line['3'] - line['9'])/1000) * 1000)
+    line['11'] = line['10'] * 0.05
+    if line['8'] > line['11']:
+        line['12'] = line['8'] - line['11']
+    else:
+        line['14'] = 0
+        line['27'] = 0
+        return line
+    line['13'] = credit_limit_worksheet_a(line18)['5']
+    line['14'] = min(line['12'], line['13'])
+    return line
+
+
+    
+
+print("Tax report for %s" % (year))
+print("-------------------")
+
+#################################
+# Gather ledger values
+
+# Income
+income              = 0 - ledger_amount('tag EarnedIncome')
+taxable_interest    = 0 - ledger_amount('"Interest and not HSA"')
+qualified_dividends = 0 - ledger_amount('tag QualifiedDividends')
+ordinary_dividends  = 0 - ledger_amount('tag OrdinaryDividends')
+net_st              = 0 - ledger_amount('tag ShortTermGains')
+net_lt              = 0 - ledger_amount('tag LongTermGains')
+
+# Expenses
+total_payments      = ledger_amount('tag TaxesPaid')
+deductions          = ledger_amount('tag ^TaxDeductible$')
+deductions_limited  = ledger_amount('tag ^TaxDeductibleLimited$')
+
+# Other
+dependants          = 2
+
+
+############################
+# Compute taxes
+
+
+schedule_d = compute_schedule_d(net_st, net_lt)
+
+line       = {}
+
+# Income
+line['1z'] = income
+line['2b'] = taxable_interest
+line['3a'] = qualified_dividends
+line['3b'] = ordinary_dividends
+line['4b'] = 0.00                # TODO: IRA Distribution
+line['5b'] = 0.00                # TODO: Pension
+line['6b'] = 0.00                # TODO: Social security
+line['7']  = schedule_d['21']
+line['8']  = 0.00 # TODO: Schedule 1
+line['9']  = line['1z'] + line['2b'] + line['3b'] + line['4b'] + \
+             line['5b'] + line['6b'] + line['7'] + line['8']
+
+line['10'] = 0.00                # TODO Schedule 1 (line 26)
+line['11'] = line['9'] - line['10']
+
+line['12'] = compute_deduction(deductions, deductions_limited)
+line['13'] = 0.00                # TODO: Form 8995
+line['14'] = line['12'] + line['13']
+line['15'] = max(0, line['11'] - line['14'])
+
+# Tax and Credits
+tax_worksheet = compute_tax_worksheet(line['15'], line['3a'], schedule_d)
+line['16'] = tax_worksheet['25']
+line['17'] = 0.00                # TODO: Schedule 2 (line 3)
+line['18'] = line['16'] + line['17']
+line['19'] = compute_child_tax_credit(line['11'], dependants, line['18'])['14']
+line['20'] = 0.00                # TODO: Schedule 3 (line 8)
+line['21'] = line['19'] + line['20']
+line['22'] = max(0, line['18'] - line['21'])
+line['23'] = 0.00                # TODO Schedule 2 (line 21)
+line['24'] = line['22'] + line['23']
+
+# Payments
+line['33'] = total_payments
+
+# Refund
+line['34'] = max(0, line['33'] - line['24'])
+
+# Amount You Owe
+line['37'] = max(0, line['24'] - line['33'])
+# TODO Penalty
+
+
+####################
+
+print(" 1z. Total income         ${:>12,.0f}".format(line['1z']))
+print(" 2b. Taxable interest     ${:>12,.0f}".format(line['2b']))
+print(" 3b. Ordinary dividends   ${:>12,.0f}".format(line['3b']))
+print("  7. Capital gain (loss)  ${:>12,.0f}".format(line['7']))
+print("  8. Other income         ${:>12,.0f}".format(line['8']))
+print("  9. Total income         ${:>12,.0f}".format(line['9']))
+print(" 10. Adjustments          ${:>12,.0f}".format(line['10']))
+print(" 11. AGI                  ${:>12,.0f}".format(line['11']))
+print() 
+
+print(" 12. Deductions           ${:>12,.0f}".format(line['12']))
+print(" 13. Business deduction   ${:>12,.0f}".format(line['13']))
+print(" 15. Taxable income       ${:>12,.0f}".format(line['15']))
+print()
+
+print(" 16. Tax                  ${:>12,.0f}".format(line['16']))
+print(" 16. Total tax            ${:>12,.0f}".format(line['24']))
+print(" 33. Total payments       ${:>12,.0f}".format(line['33']))
+
+if line['34'] > 0:
+    print(" 34. Tax refund           ${:>12,.0f}".format(line['34']))
+else:
+    print(" 37. Taxes owed           ${:>12,.0f}".format(line['37']))
+
